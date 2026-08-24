@@ -1,0 +1,62 @@
+[
+  {
+    "key": "7f3a2b1c-4d5e-4f6a-8b9c-0d1e2f3a4b5c",
+    "name": "Return Left",
+    "type": "level",
+    "min": 0,
+    "max": 10000
+  },
+  {
+    "key": "8a4b3c2d-5e6f-4a7b-9c0d-1e2f3a4b5c6d",
+    "name": "Return Right",
+    "type": "level",
+    "min": 0,
+    "max": 10000
+  },
+  {
+    "key": "3c4d5e6f-7a8b-4c9d-0e1f-2a3b4c5d6e7f",
+    "name": "Left Gyre",
+    "type": "level",
+    "min": -10000,
+    "max": 10000
+  },
+  {
+    "key": "4d5e6f7a-8b9c-4d0e-1f2a-3b4c5d6e7f8a",
+    "name": "Heaters",
+    "type": "bool"
+  },
+  {
+    "key": "5e6f7a8b-9c0d-4e1f-2a3b-4c5d6e7f8a9b",
+    "name": "AWC",
+    "type": "bool"
+  },
+  {
+    "key": "6f7a8b9c-0d1e-4f2a-3b4c-5d6e7f8a9b0c",
+    "name": "AWC / drain",
+    "type": "bool",
+    "parent": "5e6f7a8b-9c0d-4e1f-2a3b-4c5d6e7f8a9b"
+  },
+  {
+    "key": "7a8b9c0d-1e2f-4a3b-4c5d-6e7f8a9b0c1d",
+    "name": "AWC / fill",
+    "type": "bool",
+    "parent": "5e6f7a8b-9c0d-4e1f-2a3b-4c5d6e7f8a9b"
+  },
+  {
+    "key": "8b9c0d1e-2f3a-4b4c-5d6e-7f8a9b0c1d2e",
+    "name": "CC Blue",
+    "type": "level",
+    "min": 0,
+    "max": 10000
+  },
+  {
+    "key": "mode",
+    "name": "Mode",
+    "type": "mode",
+    "commands": {
+      "Feeding": {},
+      "Normal": {},
+      "Water Change": {}
+    }
+  }
+]

@@ -1,0 +1,113 @@
+{
+  "collectiveStatus": 4,
+  "collectiveMaster": "d0ef766b2090",
+  "mode": "Normal",
+  "millis": 1578947568911,
+  "hostname": "d0ef766b2090",
+  "time": "2026-04-12 13:13:58 EDT",
+  "bootTime": "2026-03-30 16:41:09 EDT",
+  "temperatureI": 275,
+  "version": "Quatro-380",
+  "configNum": 1336,
+  "Input": {
+    "Temperature 1": {
+      "senseValue": 25.875
+    },
+    "Temperature 2": {
+      "senseValue": 25.7675
+    },
+    "pH": {
+      "probeValue": 8.012,
+      "probeRawValue": -308
+    },
+    "Salinity": {
+      "probeValue": 36.148,
+      "probeRawValue": 57670
+    },
+    "ORP": {
+      "probeValue": 177.879,
+      "probeRawValue": 807
+    },
+    "ATO Level": {
+      "senseValue": 1
+    },
+    "Alky Alkalinity": {
+      "value": 7.236,
+      "alert": "Value 7.24 dKH out of safe range",
+      "time": 1767014490
+    }
+  },
+  "Output": {
+    "Return Left": {
+      "valueState": 7500,
+      "voltageI": 2341,
+      "current": 1177,
+      "powerI": 275,
+      "rpm": 1665,
+      "override": false,
+      "alert": "",
+      "waiting": false,
+      "schedule": "",
+      "position": "Same"
+    },
+    "Left Octo": {
+      "valueState": 0,
+      "voltageI": 2432,
+      "current": 9,
+      "powerI": 2,
+      "rpm": 0,
+      "override": true,
+      "alert": "",
+      "waiting": false,
+      "schedule": "Day",
+      "position": "Same"
+    },
+    "AWC": {
+      "valueState": 0,
+      "override": false,
+      "alert": "Max Off Time has been exceeded",
+      "waiting": false,
+      "drainvalueState": 0,
+      "drainoverride": true,
+      "drainalert": "",
+      "drainwaiting": false,
+      "fillvalueState": 0,
+      "filloverride": true,
+      "fillalert": "",
+      "fillwaiting": false,
+      "schedule": ""
+    },
+    "Heaters": {
+      "valueState": 0,
+      "voltageI": 12062,
+      "current": 0,
+      "powerI": 0,
+      "override": false,
+      "alert": "",
+      "waiting": false
+    }
+  },
+  "health": {
+    "d0ef766b2090": {
+      "busPower": {
+        "voltageI": 2396,
+        "current": 77
+      },
+      "temperatureI": 275,
+      "time": "2026-04-12 13:13:58 EDT",
+      "bootTime": "2026-03-30 16:41:09 EDT",
+      "wifiState": 4,
+      "sdCardStatus": 0,
+      "selfTestRunCount": 20,
+      "selfTestPassCount": 20
+    }
+  },
+  "otaState": {
+    "d0ef766b2090": {
+      "otaState": 102,
+      "runningVer": 380,
+      "storedVer": 374,
+      "downloadVer": 0
+    }
+  }
+}
