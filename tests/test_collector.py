@@ -53,6 +53,26 @@ def test_temperature_inputs_use_sense_value(sampled):
     ) == pytest.approx(25.7675)
 
 
+def test_every_celsius_family_has_a_fahrenheit_twin(sampled):
+    assert value(
+        sampled, "hydros_input_temperature_fahrenheit", name="Temperature 1"
+    ) == pytest.approx(78.575)
+    assert value(
+        sampled, "hydros_device_temperature_fahrenheit", device="d0ef766b2090"
+    ) == pytest.approx(81.5)
+
+    celsius = {m for m, _ in sampled if m.endswith("_temperature_celsius")}
+    fahrenheit = {m for m, _ in sampled if m.endswith("_temperature_fahrenheit")}
+    assert {m.replace("_celsius", "_fahrenheit") for m in celsius} == fahrenheit
+
+
+def test_fahrenheit_twin_carries_the_same_labels(sampled):
+    def labels_for(suffix):
+        return {lbls for m, lbls in sampled if m == f"hydros_input_temperature_{suffix}"}
+
+    assert labels_for("celsius") == labels_for("fahrenheit")
+
+
 def test_alkalinity_reads_plain_value_and_flags_its_alert(sampled):
     assert value(sampled, "hydros_input_alkalinity_dkh", name="Alky Alkalinity") == pytest.approx(
         7.236

@@ -35,6 +35,23 @@ _CHANNEL_RE = re.compile(r"^(?P<channel>[A-Za-z0-9]+)valueState$")
 
 _READING_FIELDS = ("probeValue", "senseValue", "value")
 
+def to_fahrenheit(celsius: float) -> float:
+    return celsius * 9.0 / 5.0 + 32.0
+
+
+# Each Celsius family is published alongside a Fahrenheit twin, so a Grafana
+# variable can switch the displayed unit by metric name alone.
+FAHRENHEIT_COMPANION = {
+    "hydros_input_temperature_celsius": (
+        "hydros_input_temperature_fahrenheit",
+        "Calibrated temperature in degrees Fahrenheit.",
+    ),
+    "hydros_device_temperature_celsius": (
+        "hydros_device_temperature_fahrenheit",
+        "Internal device temperature in degrees Fahrenheit.",
+    ),
+}
+
 UNIT_METRICS = {
     "celsius": ("hydros_input_temperature_celsius", "Calibrated temperature in degrees Celsius."),
     "ph": ("hydros_input_ph", "Calibrated pH reading."),
@@ -88,6 +105,14 @@ def _number(value: object) -> float | None:
 
 def _flag(value: object) -> float:
     return 1.0 if value else 0.0
+
+
+def _family(store: dict, name: str, helptext: str, labels: list) -> GaugeMetricFamily:
+    family = store.get(name)
+    if family is None:
+        family = GaugeMetricFamily(name, helptext, labels=labels)
+        store[name] = family
+    return family
 
 
 def _naive(stamp: object) -> datetime | None:
@@ -279,13 +304,15 @@ class StateCollector:
             metric_name, helptext = kind
             for candidate in _READING_FIELDS:
                 value = _number(entry.get(candidate))
-                if value is not None:
-                    family = typed.get(metric_name)
-                    if family is None:
-                        family = GaugeMetricFamily(metric_name, helptext, labels=["name"])
-                        typed[metric_name] = family
-                    family.add_metric([name], value)
-                    break
+                if value is None:
+                    continue
+                _family(typed, metric_name, helptext, ["name"]).add_metric([name], value)
+                twin = FAHRENHEIT_COMPANION.get(metric_name)
+                if twin:
+                    _family(typed, twin[0], twin[1], ["name"]).add_metric(
+                        [name], to_fahrenheit(value)
+                    )
+                break
 
         yield from typed.values()
         yield raw
@@ -401,6 +428,11 @@ class StateCollector:
         temperature = GaugeMetricFamily(
             "hydros_device_temperature_celsius", "Internal device temperature.", labels=["device"]
         )
+        temperature_f = GaugeMetricFamily(
+            "hydros_device_temperature_fahrenheit",
+            FAHRENHEIT_COMPANION["hydros_device_temperature_celsius"][1],
+            labels=["device"],
+        )
         bus_volts = GaugeMetricFamily(
             "hydros_device_bus_voltage_volts", "Accessory bus voltage.", labels=["device"]
         )
@@ -430,7 +462,9 @@ class StateCollector:
                     continue
                 value = _number(entry.get("temperatureI"))
                 if value is not None:
-                    temperature.add_metric([mac], value / DIVISOR_TEMPERATURE)
+                    celsius = value / DIVISOR_TEMPERATURE
+                    temperature.add_metric([mac], celsius)
+                    temperature_f.add_metric([mac], to_fahrenheit(celsius))
                 bus = entry.get("busPower")
                 if isinstance(bus, dict):
                     value = _number(bus.get("voltageI"))
@@ -454,7 +488,9 @@ class StateCollector:
                 if elapsed is not None:
                     uptime.add_metric([mac], elapsed)
 
-        yield from (temperature, bus_volts, bus_amps, wifi, sdcard, uptime, runs, passes)
+        yield from (
+            temperature, temperature_f, bus_volts, bus_amps, wifi, sdcard, uptime, runs, passes
+        )
 
         if isinstance(ota, dict):
             state_family = GaugeMetricFamily(
