@@ -46,7 +46,16 @@ UNIT_METRICS = {
 
 # Matched against whole tokens of the lowercased name, so "pH" does not match
 # "Phosphate".
-_EXACT_TOKENS = {"ph": "ph", "orp": "orp", "level": "level", "ato": "level"}
+_EXACT_TOKENS = {
+    "ph": "ph",
+    "orp": "orp",
+    # Binary float/optical switches. All report a 0/1 senseValue like a level.
+    "level": "level",
+    "ato": "level",
+    "overflow": "level",
+    "leak": "level",
+    "float": "level",
+}
 _PREFIX_TOKENS = (("temp", "celsius"), ("salin", "ppt"), ("sal", "ppt"), ("alk", "dkh"))
 
 
@@ -90,18 +99,20 @@ def _naive(stamp: object) -> datetime | None:
         return None
 
 
-def boot_epoch(state: dict, health: dict) -> float | None:
+def uptime_seconds(state: dict, health: dict) -> float | None:
     """
-    Derive a boot timestamp without parsing the trailing timezone abbreviation.
     `time` and `bootTime` share a timezone, so their naive difference is a valid
-    uptime, which anchors against the millis epoch.
+    uptime without parsing the trailing abbreviation.
+
+    `millis` is deliberately not used as an epoch anchor here. The spec calls it
+    a Unix timestamp in milliseconds, but a live Quatro-398 reports it counting
+    from a fixed 2020-01-01 base, which dates every boot to 2020.
     """
-    millis = _number(state.get("millis"))
     now_local = _naive(health.get("time") or state.get("time"))
     booted = _naive(health.get("bootTime") or state.get("bootTime"))
-    if millis is None or now_local is None or booted is None:
+    if now_local is None or booted is None:
         return None
-    return millis / 1000.0 - (now_local - booted).total_seconds()
+    return max(0.0, (now_local - booted).total_seconds())
 
 
 @dataclass
@@ -221,13 +232,6 @@ class StateCollector:
                 "hydros_collective_config_revision",
                 "Device configuration revision number.",
                 value=config,
-            )
-        reported = _number(state.get("millis"))
-        if reported is not None:
-            yield GaugeMetricFamily(
-                "hydros_collective_report_timestamp_seconds",
-                "Device-reported time of the state document.",
-                value=reported / 1000.0,
             )
         mode = state.get("mode")
         if isinstance(mode, str) and mode:
@@ -409,8 +413,8 @@ class StateCollector:
         sdcard = GaugeMetricFamily(
             "hydros_device_sdcard_status", "SD card status code, 0 when healthy.", labels=["device"]
         )
-        booted = GaugeMetricFamily(
-            "hydros_device_boot_timestamp_seconds", "Unix time the device booted.",
+        uptime = GaugeMetricFamily(
+            "hydros_device_uptime_seconds", "Seconds since the device booted.",
             labels=["device"],
         )
         runs = CounterMetricFamily(
@@ -446,11 +450,11 @@ class StateCollector:
                     value = _number(entry.get(source))
                     if value is not None:
                         family.add_metric([mac], value)
-                epoch = boot_epoch(state, entry)
-                if epoch is not None:
-                    booted.add_metric([mac], epoch)
+                elapsed = uptime_seconds(state, entry)
+                if elapsed is not None:
+                    uptime.add_metric([mac], elapsed)
 
-        yield from (temperature, bus_volts, bus_amps, wifi, sdcard, booted, runs, passes)
+        yield from (temperature, bus_volts, bus_amps, wifi, sdcard, uptime, runs, passes)
 
         if isinstance(ota, dict):
             state_family = GaugeMetricFamily(

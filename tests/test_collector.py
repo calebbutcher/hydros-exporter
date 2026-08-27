@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from hydros.collector import Cache, StateCollector, boot_epoch, classify_input
+from hydros.collector import Cache, StateCollector, classify_input, uptime_seconds
 from hydros.__main__ import parse_input_units
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -142,6 +142,7 @@ def test_health_and_ota_are_labelled_by_mac(sampled):
     assert value(sampled, "hydros_device_wifi_state", device=mac) == 4.0
     assert value(sampled, "hydros_device_selftest_runs_total", device=mac) == 20.0
     assert value(sampled, "hydros_device_firmware_running", device=mac) == 380.0
+    assert value(sampled, "hydros_device_uptime_seconds", device=mac) == pytest.approx(1110769.0)
 
 
 def test_device_info_omits_the_owner_email(sampled):
@@ -151,12 +152,27 @@ def test_device_info_omits_the_owner_email(sampled):
     assert not any("owner" in dict(labels) for _, labels in sampled)
 
 
-def test_boot_timestamp_is_derived_without_parsing_the_zone():
+def test_uptime_is_derived_without_parsing_the_zone():
     state = load("state.json")
     health = state["health"]["d0ef766b2090"]
-    epoch = boot_epoch(state, health)
     # 2026-03-30 16:41:09 to 2026-04-12 13:13:58 in the same zone.
-    assert state["millis"] / 1000.0 - epoch == pytest.approx(1110769.0)
+    assert uptime_seconds(state, health) == pytest.approx(1110769.0)
+
+
+def test_uptime_ignores_the_millis_epoch():
+    """A live Quatro-398 counts millis from 2020-01-01, not the Unix epoch."""
+    state = {
+        "millis": 1577837398401,
+        "time": "2026-08-26 21:53:37 EDT",
+        "bootTime": "2026-08-26 21:43:38 EDT",
+    }
+    assert uptime_seconds(state, {}) == pytest.approx(599.0)
+
+
+def test_no_device_reported_timestamp_is_published(sampled):
+    # millis is not a wall clock, so it must not surface as one.
+    assert not any(m.startswith("hydros_collective_report") for m, _ in sampled)
+    assert not any(m.startswith("hydros_device_boot") for m, _ in sampled)
 
 
 def test_stale_state_stops_reporting_readings():
@@ -200,6 +216,10 @@ def test_unrecognised_sensors_still_report_their_numbers():
         ("ORP", "hydros_input_orp_millivolts"),
         ("Alky Alkalinity", "hydros_input_alkalinity_dkh"),
         ("ATO Level", "hydros_input_level"),
+        ("ATO Water Level", "hydros_input_level"),
+        ("Skimmer Overflow", "hydros_input_level"),
+        ("Sump Leak", "hydros_input_level"),
+        ("pH Probe", "hydros_input_ph"),
     ],
 )
 def test_known_sensor_names_classify(name, expected):
