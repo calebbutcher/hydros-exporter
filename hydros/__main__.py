@@ -1,4 +1,4 @@
-"""Maintains the polling session, polls device state, serves /metrics."""
+"""Maintains the polling session, polls device state, serves /metrics and /state."""
 
 from __future__ import annotations
 
@@ -9,11 +9,13 @@ import logging
 import os
 import signal
 import sys
+import threading
 import time
 from datetime import datetime, timezone
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from prometheus_client import REGISTRY, start_http_server
+from prometheus_client import CONTENT_TYPE_LATEST, REGISTRY, generate_latest
 
 from .client import AuthError, HydrosClient, OfflineError, TransientError
 from .collector import Cache, StateCollector
@@ -26,6 +28,64 @@ log = logging.getLogger("hydros")
 AUTH_RETRY_SECONDS = 900
 BACKOFF_START = 5.0
 BACKOFF_CAP = 300.0
+
+
+INDEX = b"hydros-exporter\n\n  /metrics   Prometheus metrics\n  /state     raw cached device state\n"
+
+
+def build_handler(cache: Cache):
+    """
+    /state serves the document exactly as the API returned it, including fields
+    no metric is derived from. Only the state document is exposed; the device
+    document carries the owner's email.
+    """
+
+    class Handler(BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
+        def _send(self, code: int, body: bytes, content_type: str) -> None:
+            self.send_response(code)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def do_GET(self) -> None:
+            path = self.path.split("?", 1)[0].rstrip("/") or "/"
+            if path == "/metrics":
+                self._send(200, generate_latest(REGISTRY), CONTENT_TYPE_LATEST)
+            elif path == "/state":
+                self._send(*self._state())
+            elif path == "/":
+                self._send(200, INDEX, "text/plain; charset=utf-8")
+            else:
+                self._send(404, b"not found\n", "text/plain; charset=utf-8")
+
+        def _state(self):
+            snap = cache.snapshot()
+            if snap.state is None:
+                return 503, b'{"error": "no state cached"}\n', "application/json"
+            body = json.dumps(
+                {
+                    "fetched_at": snap.fetched_at,
+                    "age_seconds": round(time.time() - snap.fetched_at, 1),
+                    "state": snap.state,
+                },
+                indent=2,
+                sort_keys=True,
+            ).encode() + b"\n"
+            return 200, body, "application/json"
+
+        def log_message(self, *args) -> None:
+            pass
+
+    return Handler
+
+
+def serve_http(port: int, cache: Cache) -> None:
+    server = ThreadingHTTPServer(("", port), build_handler(cache))
+    server.daemon_threads = True
+    threading.Thread(target=server.serve_forever, daemon=True).start()
 
 
 def parse_input_units(raw: str) -> dict[str, str]:
@@ -159,7 +219,7 @@ def main(argv: list[str] | None = None) -> int:
             stale_after=max(3 * poll_interval, 180),
         )
     )
-    start_http_server(args.port)
+    serve_http(args.port, cache)
     log.info("serving metrics on :%s", args.port)
 
     if args.mock:
