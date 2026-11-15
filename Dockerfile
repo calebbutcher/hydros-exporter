@@ -1,7 +1,11 @@
 FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1
+    PYTHONDONTWRITEBYTECODE=1 \
+    OTEL_SERVICE_NAME=hydros-exporter \
+    OTEL_TRACES_EXPORTER=none \
+    OTEL_METRICS_EXPORTER=none \
+    OTEL_LOGS_EXPORTER=none
 
 WORKDIR /app
 
@@ -17,4 +21,6 @@ USER 1000:1000
 
 EXPOSE 8080
 
-CMD ["python", "-m", "hydros"]
+# opentelemetry-instrument traces every HYDROS API call (httpx). Exporting is
+# off by default; set OTEL_TRACES_EXPORTER=otlp to turn it on.
+CMD ["opentelemetry-instrument", "python", "-m", "hydros"]
