@@ -17,6 +17,8 @@ collective. One device key covers the whole collective.
 | `HYDROS_PORT` | `8080` | |
 | `HYDROS_BEARER_AUTH` | `false` | Forces the `Bearer` header form; autodetected otherwise |
 | `HYDROS_LOG_LEVEL` | `INFO` | |
+| `OTEL_TRACES_EXPORTER` | `none` | `otlp` traces every HYDROS API call |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | — | e.g. `http://collector:4318` |
 
 Recognised sensor units: `celsius`, `ph`, `ppt`, `orp`, `dkh`, `level`.
 Unrecognised sensors are still exported as `hydros_input_reading{name,field}`.
